@@ -1,0 +1,22 @@
+#!/bin/bash
+
+if [ ! -f "${NAGIOS_HOME}/etc/htpasswd.users" ] ; then
+  htpasswd -c -b -s "${NAGIOS_HOME}/etc/htpasswd.users" "${NAGIOS_ADMIN_USER}" "${NAGIOS_ADMIN_PASS}"
+  chown -R ${NAGIOS_USER}.${NAGIOS_GROUP} "${NAGIOS_HOME}/etc/htpasswd.users"
+fi
+
+shutdown() {
+  echo Shutting Down
+  ls /etc/service | SHELL=/bin/sh parallel --no-notice sv force-stop {}
+  if [ -e "/proc/${RUNSVDIR_ID}" ]; then
+    kill -HUP "${RUNSVDIR_ID}"
+    wait "${RUNSVDIR_ID}"
+  fi
+}
+
+exec runsvdir -P /etc/service &
+RUNSVDIR_ID=$!
+echo "Started runsvdir, PID is ${RUNSVDIR_ID}"
+
+trap shutdown SIGTERM SIGHUP SIGINT
+wait "${RUNSVDIR_ID}"
